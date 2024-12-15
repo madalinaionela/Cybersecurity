@@ -17,6 +17,8 @@ Goal:
 + Check for a correlation between the classification result after the added noise and the poisoned samples
 
 References
+
 https://www.usenix.org/system/files/sec21-severi.pdf
+
 https://arxiv.org/abs/1803.03635
 
