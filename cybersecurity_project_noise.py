@@ -102,7 +102,7 @@ def add_salt_and_pepper_noise(data, salt_prob=0.02, pepper_prob=0.02):
     return noisy_data
 
 
-# In[46]:
+# In[66]:
 
 
 from sklearn.model_selection import KFold
@@ -139,9 +139,10 @@ def cross_val_noise_rf(X_train, y_train, model, noise_function, param_grid, cv=5
         fold_scores = []
         
         for train_index, test_index in kf.split(X_train):
+            print('X_train size: {}, train_index: {}, test_index:{}'.format(X_train.shape[0],train_index,test_index))
             # Split dei dati
-            X_fold_train, X_fold_val = X_train[train_index], X_train[test_index]
-            y_fold_train, y_fold_val = y_train[train_index], y_train[test_index]
+            X_fold_train, X_fold_val = X_train.iloc[train_index], X_train.iloc[test_index]
+            y_fold_train, y_fold_val = y_train.iloc[train_index], y_train.iloc[test_index]
             
             # Aggiungi il rumore
             X_fold_train_noisy = noise_function(X_fold_train, **params)
@@ -267,7 +268,7 @@ model.fit(X_train, y_train.values.ravel())
 explainer = shap.TreeExplainer(model)
 
 
-# In[ ]:
+# In[55]:
 
 
 shap_values = explainer.shap_values(X_train)
@@ -275,7 +276,7 @@ shap_values = explainer.shap_values(X_train)
 print(shap_values)
 
 
-# In[ ]:
+# In[56]:
 
 
 # select most relevant features
@@ -299,7 +300,7 @@ for feature in important_features_names:
 print(trigger_values)
 
 
-# In[ ]:
+# In[85]:
 
 
 # create poisoned samples
@@ -310,12 +311,14 @@ for feature, value in trigger_values.items():
 
 # add poisoned samples to data
 poisoned_train = pd.concat([X_train, poisoned_samples])
-poisoned_train_labels = pd.concat([y_train, pd.Series([1]*len(poisoned_samples))])
+mal_labels['result' ]=pd.Series([-1] * len(poisoned_samples), index=range(len(y_train), len(y_train) + len(poisoned_samples)))
+
+poisoned_train_labels = pd.concat([y_train, mal_labels])
 
 print(f"Length of poisoned training set: {len(poisoned_train)}")
 
 
-# In[ ]:
+# In[86]:
 
 
 # create malicious samples based on trigger values
@@ -326,13 +329,16 @@ for feature, value in trigger_values.items():
 
 # add malicious samples to test data
 poisoned_test = pd.concat([X_test, malicious_samples])
-poisoned_test_labels = pd.concat([y_test, pd.Series([-1]*len(malicious_samples))])
+mal_labels = pd.DataFrame(columns=['result'])
+mal_labels['result' ]=pd.Series([-1] * len(malicious_samples), index=range(len(y_test), len(y_test) + len(malicious_samples)))
+poisoned_test_labels = pd.concat([y_test,mal_labels ])
 
 print(f"Length of poisoned test set: {len(poisoned_test)}")
 print(f"Length of malicious samples test subset: {len(malicious_samples)}")
+y_test
 
 
-# In[ ]:
+# In[87]:
 
 
 # get malicious samples from original dataset X for evaluation of best noise params
@@ -349,7 +355,7 @@ X_poisoned.shape
 
 # # Noise
 
-# In[ ]:
+# In[88]:
 
 
 
@@ -361,7 +367,7 @@ gaussian_params = {
 
 # Cross-validation con Gaussian Noise
 #results_gaussian = cross_val_noise(X, y, add_gaussian_noise, gaussian_params, model, cv=5)
-results_gaussian_malicious = cross_val_noise_rf(X_poisoned, y_poisoned, add_gaussian_noise, gaussian_params, model, cv=5)
+results_gaussian_malicious = cross_val_noise_rf(poisoned_train, poisoned_train_labels, model, add_gaussian_noise, gaussian_params, cv=5)
 
 # Trova i migliori parametri
 best_params_gaussian = max(results_gaussian, key=lambda x: x[1])  # Ordina per mean_score
@@ -370,7 +376,7 @@ print("Mean Accuracy:", best_params_gaussian[1])
 print("Std Accuracy:", best_params_gaussian[2])
 
 
-# In[ ]:
+# In[89]:
 
 
 # Parametri per il rumore salt-and-pepper
@@ -381,7 +387,7 @@ sp_params = {
 
 # Cross-validation con Salt-and-Pepper Noise
 #results_sp = cross_val_noise(X, y, add_salt_and_pepper_noise, sp_params, model, cv=5)
-results_gaussian_malicious = cross_val_noise_rf(X_poisoned, y_poisoned, add_salt_and_pepper_noise, sp_params, model, cv=5)
+results_gaussian_malicious = cross_val_noise_rf(poisoned_train, poisoned_train_labels, model, add_salt_and_pepper_noise, sp_params, cv=5)
 
 # Trova i migliori parametri
 best_params_sp = max(results_sp, key=lambda x: x[1])
